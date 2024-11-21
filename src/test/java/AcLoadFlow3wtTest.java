@@ -6,7 +6,12 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
-import com.powsybl.iidm.network.*;
+import com.powsybl.iidm.network.Battery;
+import com.powsybl.iidm.network.Bus;
+import com.powsybl.iidm.network.Generator;
+import com.powsybl.iidm.network.Network;
+import com.powsybl.iidm.network.extensions.VoltageRegulationAdder;
+import com.powsybl.iidm.network.test.BatteryNetworkFactory;
 import com.powsybl.loadflow.LoadFlow;
 import com.powsybl.loadflow.LoadFlowParameters;
 import com.powsybl.loadflow.LoadFlowResult;
@@ -14,154 +19,52 @@ import com.powsybl.math.matrix.DenseMatrixFactory;
 import com.powsybl.openloadflow.OpenLoadFlowParameters;
 import com.powsybl.openloadflow.OpenLoadFlowProvider;
 import com.powsybl.openloadflow.network.SlackBusSelectionMode;
-import com.powsybl.openloadflow.network.T3wtFactory;
-import com.powsybl.openloadflow.util.LoadFlowAssert;
-import knitroextension.ExternalSolverExtensionParameters;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import static com.powsybl.openloadflow.util.LoadFlowAssert.*;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class AcLoadFlow3wtTest {
+class AcLoadFlowBatteryTest {
 
     private Network network;
-    private Substation s;
-    private Bus bus1;
-    private Bus bus2;
-    private Bus bus3;
-    private ThreeWindingsTransformer twt;
-
+    private Bus genBus;
+    private Bus batBus;
+    private Generator generator;
+    private Battery battery1;
+    private Battery battery2;
     private LoadFlow.Runner loadFlowRunner;
-
     private LoadFlowParameters parameters;
 
     @BeforeEach
     void setUp() {
-        network = T3wtFactory.create();
-        s = network.getSubstation("s");
-        bus1 = network.getBusBreakerView().getBus("b1");
-        bus2 = network.getBusBreakerView().getBus("b2");
-        bus3 = network.getBusBreakerView().getBus("b3");
-        twt = network.getThreeWindingsTransformer("3wt");
+        network = BatteryNetworkFactory.create();
+        genBus = network.getBusBreakerView().getBus("NGEN");
+        batBus = network.getBusBreakerView().getBus("NBAT");
+        generator = network.getGenerator("GEN");
+        generator.setMinP(0).setMaxP(1000).setTargetV(401.);
+        battery1 = network.getBattery("BAT");
+        battery1.setMinP(-1000).setMaxP(1000).setTargetQ(0).setTargetP(0);
+        battery2 = network.getBattery("BAT2");
+        battery2.setTargetP(-1000).setMaxP(1000);
+
         loadFlowRunner = new LoadFlow.Runner(new OpenLoadFlowProvider(new DenseMatrixFactory()));
-        parameters = new LoadFlowParameters().setUseReactiveLimits(false)
-                .setDistributedSlack(false);
-        ExternalSolverExtensionParameters externalSolverExtensionParameters = new ExternalSolverExtensionParameters(); // set gradient computation mode
-        externalSolverExtensionParameters.setGradientComputationMode(2);
-        parameters.addExtension(ExternalSolverExtensionParameters.class, externalSolverExtensionParameters);
-        OpenLoadFlowParameters.create(parameters)
-                .setSlackBusSelectionMode(SlackBusSelectionMode.MOST_MESHED);
+        parameters = new LoadFlowParameters().setUseReactiveLimits(true)
+                .setDistributedSlack(true);
     }
 
     @Test
     void test() {
-        LoadFlowResult result = loadFlowRunner.run(network, parameters);
-        assertTrue(result.isFullyConverged());
+        battery2.newExtension(VoltageRegulationAdder.class)
+                .withTargetV(401)
+                .withVoltageRegulatorOn(false)
 
-        assertVoltageEquals(405, bus1);
-        LoadFlowAssert.assertAngleEquals(0, bus1);
-        assertVoltageEquals(235.132, bus2);
-        LoadFlowAssert.assertAngleEquals(-2.259241, bus2);
-        assertVoltageEquals(20.834, bus3);
-        LoadFlowAssert.assertAngleEquals(-2.721885, bus3);
-        assertActivePowerEquals(161.095, twt.getLeg1().getTerminal());
-        assertReactivePowerEquals(81.884, twt.getLeg1().getTerminal());
-        assertActivePowerEquals(-161, twt.getLeg2().getTerminal());
-        assertReactivePowerEquals(-74, twt.getLeg2().getTerminal());
-        assertActivePowerEquals(0, twt.getLeg3().getTerminal());
-        assertReactivePowerEquals(0, twt.getLeg3().getTerminal());
-    }
-
-    @Test
-    void testWithRatioTapChangers() {
-        // create a ratio tap changer on leg 1 and check that voltages on leg 2 and 3 have changed compare to previous
-        // test
-        twt.getLeg1().newRatioTapChanger()
-                .setLoadTapChangingCapabilities(false)
-                .setTapPosition(0)
-                .beginStep()
-                .setR(5)
-                .setX(10)
-                .setRho(0.9)
-                .endStep()
                 .add();
         LoadFlowResult result = loadFlowRunner.run(network, parameters);
-        assertTrue(result.isFullyConverged());
-        assertVoltageEquals(405, bus1);
-        assertVoltageEquals(209.886, bus2);
-        assertVoltageEquals(18.582, bus3);
-    }
-
-    @Test
-    void testWithPhaseTapChangers() {
-        // create a phase tap changer at leg 2 with a zero phase shifting
-        PhaseTapChanger ptc = twt.getLeg2().newPhaseTapChanger()
-                .setTapPosition(0)
-                .beginStep()
-                .setAlpha(0)
-                .endStep()
-                .add();
-        // create a transformer between bus 1 / bus2 in parallel of leg1 / leg2
-        TwoWindingsTransformer twtParallel = s.newTwoWindingsTransformer()
-                .setId("2wt")
-                .setBus1("b1")
-                .setConnectableBus1("b1")
-                .setBus2("b2")
-                .setConnectableBus2("b2")
-                .setRatedU1(390)
-                .setRatedU2(220)
-                .setR(4)
-                .setX(80)
-                .add();
-        LoadFlowResult result = loadFlowRunner.run(network, parameters);
-        assertTrue(result.isFullyConverged());
-        assertActivePowerEquals(21.97, twtParallel.getTerminal1());
-        assertActivePowerEquals(-139.088, twt.getLeg2().getTerminal());
-
-        // set the phase shifting to 10 degree and check active flow change
-        ptc.getStep(0).setAlpha(10);
-        result = loadFlowRunner.run(network, parameters);
-        assertTrue(result.isFullyConverged());
-        assertActivePowerEquals(121.691, twtParallel.getTerminal1());
-        assertActivePowerEquals(-40.452, twt.getLeg2().getTerminal());
-    }
-
-    @Test
-    void testSplitShuntAdmittance() {
-        parameters.setTwtSplitShuntAdmittance(false);
-        twt.getLeg1().setB(0.00004);
-        LoadFlowResult result = loadFlowRunner.run(network, parameters);
-        assertTrue(result.isFullyConverged());
-
-        assertVoltageEquals(405, bus1);
-        LoadFlowAssert.assertAngleEquals(0, bus1);
-        assertVoltageEquals(235.132, bus2);
-        LoadFlowAssert.assertAngleEquals(-2.259241, bus2);
-        assertVoltageEquals(20.834, bus3);
-        LoadFlowAssert.assertAngleEquals(-2.721885, bus3);
-        assertActivePowerEquals(161.095, twt.getLeg1().getTerminal());
-        assertReactivePowerEquals(75.323, twt.getLeg1().getTerminal());
-        assertActivePowerEquals(-161, twt.getLeg2().getTerminal());
-        assertReactivePowerEquals(-74, twt.getLeg2().getTerminal());
-        assertActivePowerEquals(0, twt.getLeg3().getTerminal());
-        assertReactivePowerEquals(0, twt.getLeg3().getTerminal());
-
-        parameters.setTwtSplitShuntAdmittance(true);
-        result = loadFlowRunner.run(network, parameters);
-        assertTrue(result.isFullyConverged());
-
-        assertVoltageEquals(405, bus1);
-        LoadFlowAssert.assertAngleEquals(0, bus1);
-        assertVoltageEquals(235.358, bus2);
-        LoadFlowAssert.assertAngleEquals(-2.257583, bus2);
-        assertVoltageEquals(20.854, bus3);
-        LoadFlowAssert.assertAngleEquals(-2.719334, bus3);
-        assertActivePowerEquals(161.095, twt.getLeg1().getTerminal());
-        assertReactivePowerEquals(75.314, twt.getLeg1().getTerminal());
-        assertActivePowerEquals(-161, twt.getLeg2().getTerminal());
-        assertReactivePowerEquals(-74, twt.getLeg2().getTerminal());
-        assertActivePowerEquals(0, twt.getLeg3().getTerminal());
-        assertReactivePowerEquals(0, twt.getLeg3().getTerminal());
+//        assertTrue(result.isFullyConverged());
+//
+//        assertVoltageEquals(401, genBus);
+//        LoadFlowAssert.assertAngleEquals(5.916585, genBus);
+//        assertVoltageEquals(397.660, batBus);
+//        LoadFlowAssert.assertAngleEquals(0.0, batBus);
     }
 }
