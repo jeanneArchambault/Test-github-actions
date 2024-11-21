@@ -35,7 +35,7 @@ jobs:
       # Build and test your project
       - name: Build and test
         run: |
-          mvn clean test
+          mvn clean install -X
 
       # Upload test results
       - name: Upload test results
