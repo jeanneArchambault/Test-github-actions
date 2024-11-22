@@ -28,7 +28,7 @@ jobs:
       - name: Verify Java version 17
         run: java -version
 
-      # Clone powsybl-openloadflow dependency
+      # Clone powsybl-openloadflow dependency on local repo
       - name: Clone powsybl-open-loadflow
         run: |
           git clone https://github.com/jeanneArchambault/Test-github-actions-OLF.git
