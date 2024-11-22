@@ -31,8 +31,8 @@ jobs:
       # Clone powsybl-openloadflow dependency
       - name: Clone powsybl-open-loadflow
         run: |
-          git clone https://github.com/powsybl/powsybl-open-loadflow.git
-          cd powsybl-open-loadflow
+          git clone https://github.com/jeanneArchambault/Test-github-actions-OLF.git
+          cd Test-github-actions-OLF
           mvn clean install -DskipTests
           cd ..
 
