@@ -1,6 +1,8 @@
 name: CI Workflow
 
 on:
+  schedule:
+    - cron: '* * * * *' # Run every minute
   push:
     branches:
       - main  # Trigger on pushes to the main branch
