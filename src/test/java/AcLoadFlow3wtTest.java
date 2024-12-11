@@ -19,6 +19,10 @@ import com.powsybl.math.matrix.DenseMatrixFactory;
 import com.powsybl.openloadflow.OpenLoadFlowProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import util.LoadFlowAssert;
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static util.LoadFlowAssert.assertVoltageEquals;
 
 class AcLoadFlow3wtTest {
 
@@ -56,11 +60,11 @@ class AcLoadFlow3wtTest {
 
                 .add();
         LoadFlowResult result = loadFlowRunner.run(network, parameters);
-//        assertTrue(result.isFullyConverged());
-//
-//        assertVoltageEquals(401, genBus);
-//        LoadFlowAssert.assertAngleEquals(5.916585, genBus);
-//        assertVoltageEquals(397.660, batBus);
-//        LoadFlowAssert.assertAngleEquals(0.0, batBus);
+        assertTrue(result.isFullyConverged());
+
+        assertVoltageEquals(401, genBus);
+        LoadFlowAssert.assertAngleEquals(5.916585, genBus);
+        assertVoltageEquals(397.660, batBus);
+        LoadFlowAssert.assertAngleEquals(0.0, batBus);
     }
 }

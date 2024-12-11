@@ -38,6 +38,13 @@ jobs:
           mvn clean install -DskipTests
           cd ..
 
+      # Verify access to the photo in Nextcloud repository
+      - name: Verify access to Nextcloud photo
+        run: |
+          curl -u ":test5632//" -O https://nextcloud.artelys.com/nextcloud/s/4YBFsd6feFMHdfe/download
+        env:
+          CURL_CA_BUNDLE: /etc/ssl/certs/ca-certificates.crt
+
       # Build and test project
       - name: Build and test
         run: |
