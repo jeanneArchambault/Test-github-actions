@@ -41,7 +41,8 @@ jobs:
       # Verify access to the photo in Nextcloud repository
       - name: Verify access to Nextcloud photo
         run: |
-          curl -u ":test5632//" -O https://nextcloud.artelys.com/nextcloud/s/4YBFsd6feFMHdfe/download
+          curl -v -u ":test5632//" -O https://nextcloud.artelys.com/nextcloud/s/4YBFsd6feFMHdfe/download -w "%{http_code}"
+          if [ -f "download" ]; then echo "File downloaded successfully"; else echo "File download failed"; fi
         env:
           CURL_CA_BUNDLE: /etc/ssl/certs/ca-certificates.crt
 
