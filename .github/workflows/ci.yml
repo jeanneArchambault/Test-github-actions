@@ -2,7 +2,7 @@ name: CI Workflow
 
 on:
   schedule:
-    - cron: '*/5 * * * *' # Run every minute
+    - cron: '0 0 * * *' # Run daily at midnight UTC
   push:
     branches:
       - main  # Trigger on pushes to the main branch
