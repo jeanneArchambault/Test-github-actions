@@ -41,7 +41,7 @@ jobs:
       # Verify access to the photo in Nextcloud repository
       - name: Verify access to Nextcloud photo
         run: |
-          curl -u "4YBFsd6feFMHdfe:test5632//" https://nextcloud.artelys.com/nextcloud/public.php/webdav/<FILENAME> -H 'X-Requested-With: XMLHttpRequest' --output <FILENAME>
+          curl -u "4YBFsd6feFMHdfe:test5632//" https://nextcloud.artelys.com/nextcloud/public.php/webdav/Nextcloud.png -H 'X-Requested-With: XMLHttpRequest' --output Nextcloud.png
 
       # Build and test project
       - name: Build and test
